@@ -4,9 +4,10 @@ const { getSettings, updateSettings } = require('../controllers/settingsControll
 const { requireAuth } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { settingsBodySchema } = require('../validation/settingsSchemas');
+const asyncHandler = require('../middleware/asyncHandler');
 
 router.use(requireAuth);
-router.get('/', getSettings);
-router.put('/', validate(settingsBodySchema), updateSettings);
+router.get('/', asyncHandler(getSettings));
+router.put('/', validate(settingsBodySchema), asyncHandler(updateSettings));
 
 module.exports = router;

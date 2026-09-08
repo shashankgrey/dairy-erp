@@ -13,16 +13,17 @@ const {
 const { requireAuth } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { customerBodySchema, monthlyBillQuerySchema, purchaseHistoryQuerySchema } = require('../validation/customerSchemas');
+const asyncHandler = require('../middleware/asyncHandler');
 
 router.use(requireAuth);
 
-router.get('/', listCustomers);
-router.get('/:id', getCustomer);
-router.get('/:id/purchases', validate(purchaseHistoryQuerySchema, 'query'), getPurchaseHistory);
-router.get('/:id/bill', validate(monthlyBillQuerySchema, 'query'), getMonthlyBill);
-router.post('/', validate(customerBodySchema), createCustomer);
-router.put('/:id', validate(customerBodySchema), updateCustomer);
-router.post('/:id/restore', restoreCustomer);
-router.delete('/:id', deleteCustomer);
+router.get('/', asyncHandler(listCustomers));
+router.get('/:id', asyncHandler(getCustomer));
+router.get('/:id/purchases', validate(purchaseHistoryQuerySchema, 'query'), asyncHandler(getPurchaseHistory));
+router.get('/:id/bill', validate(monthlyBillQuerySchema, 'query'), asyncHandler(getMonthlyBill));
+router.post('/', validate(customerBodySchema), asyncHandler(createCustomer));
+router.put('/:id', validate(customerBodySchema), asyncHandler(updateCustomer));
+router.post('/:id/restore', asyncHandler(restoreCustomer));
+router.delete('/:id', asyncHandler(deleteCustomer));
 
 module.exports = router;

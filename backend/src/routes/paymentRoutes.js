@@ -4,11 +4,12 @@ const { createPayment, listPaymentsForCustomer, deletePayment } = require('../co
 const { requireAuth } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { paymentBodySchema } = require('../validation/paymentSchemas');
+const asyncHandler = require('../middleware/asyncHandler');
 
 router.use(requireAuth);
 
-router.post('/', validate(paymentBodySchema), createPayment);
-router.get('/customer/:customerId', listPaymentsForCustomer);
-router.delete('/:id', deletePayment);
+router.post('/', validate(paymentBodySchema), asyncHandler(createPayment));
+router.get('/customer/:customerId', asyncHandler(listPaymentsForCustomer));
+router.delete('/:id', asyncHandler(deletePayment));
 
 module.exports = router;

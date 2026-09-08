@@ -4,9 +4,10 @@ const { listPurchasesByDate, createPurchase, deletePurchase } = require('../cont
 const { requireAuth } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { purchaseBodySchema } = require('../validation/purchaseSchemas');
+const asyncHandler = require('../middleware/asyncHandler');
 
 router.use(requireAuth);
-router.get('/', listPurchasesByDate);
-router.post('/', validate(purchaseBodySchema), createPurchase);
-router.delete('/:id', deletePurchase);
+router.get('/', asyncHandler(listPurchasesByDate));
+router.post('/', validate(purchaseBodySchema), asyncHandler(createPurchase));
+router.delete('/:id', asyncHandler(deletePurchase));
 module.exports = router;
