@@ -217,3 +217,259 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT,
   updated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- ============================================================
+-- SUPPLIERS
+-- ============================================================
+
+CREATE SEQUENCE IF NOT EXISTS supplier_code_seq START 1;
+
+CREATE TABLE IF NOT EXISTS suppliers (
+  id SERIAL PRIMARY KEY,
+  supplier_code TEXT UNIQUE,
+  full_name TEXT NOT NULL,
+  mobile_number TEXT UNIQUE,
+  address TEXT,
+  email TEXT,
+  outstanding_balance NUMERIC(10,2) NOT NULL DEFAULT 0,
+  notes TEXT,
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Auto-generate supplier code
+CREATE OR REPLACE FUNCTION generate_supplier_code()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.supplier_code IS NULL THEN
+    NEW.supplier_code :=
+      'SUP-' || LPAD(nextval('supplier_code_seq')::text, 4, '0');
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_supplier_code ON suppliers;
+
+CREATE TRIGGER trg_supplier_code
+BEFORE INSERT ON suppliers
+FOR EACH ROW
+EXECUTE FUNCTION generate_supplier_code();
+
+
+-- ============================================================
+-- SUPPLIER PURCHASES / STOCK PURCHASES
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS supplier_purchases (
+  id SERIAL PRIMARY KEY,
+
+  supplier_id INTEGER NOT NULL
+    REFERENCES suppliers(id),
+
+  product_id INTEGER NOT NULL
+    REFERENCES products(id),
+
+  quantity NUMERIC(10,2) NOT NULL
+    CHECK (quantity > 0),
+
+  unit_cost NUMERIC(10,2) NOT NULL
+    CHECK (unit_cost >= 0),
+
+  total_amount NUMERIC(10,2)
+    GENERATED ALWAYS AS (quantity * unit_cost) STORED,
+
+  purchase_date DATE NOT NULL DEFAULT CURRENT_DATE,
+
+  expiry_date DATE,
+
+  invoice_number TEXT,
+
+  notes TEXT,
+
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_supplier_purchases_supplier
+ON supplier_purchases(supplier_id);
+
+CREATE INDEX IF NOT EXISTS idx_supplier_purchases_date
+ON supplier_purchases(purchase_date);
+
+CREATE INDEX IF NOT EXISTS idx_supplier_purchases_product
+ON supplier_purchases(product_id);
+
+
+-- ============================================================
+-- SUPPLIER PAYMENTS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS supplier_payments (
+  id SERIAL PRIMARY KEY,
+
+  supplier_id INTEGER NOT NULL
+    REFERENCES suppliers(id),
+
+  amount NUMERIC(10,2) NOT NULL
+    CHECK (amount > 0),
+
+  payment_date DATE NOT NULL DEFAULT CURRENT_DATE,
+
+  payment_method TEXT NOT NULL DEFAULT 'cash'
+    CHECK (payment_method IN ('cash', 'upi', 'bank', 'other')),
+
+  reference_number TEXT,
+
+  notes TEXT,
+
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_supplier_payments_supplier
+ON supplier_payments(supplier_id);
+
+CREATE INDEX IF NOT EXISTS idx_supplier_payments_date
+ON supplier_payments(payment_date);
+
+
+-- ============================================================
+-- PAYMENT METHOD FOR CUSTOMER PAYMENTS
+-- ============================================================
+
+ALTER TABLE payments
+ADD COLUMN IF NOT EXISTS payment_method TEXT NOT NULL DEFAULT 'cash';
+
+-- Add constraint safely
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'payments_payment_method_check'
+  ) THEN
+    ALTER TABLE payments
+    ADD CONSTRAINT payments_payment_method_check
+    CHECK (payment_method IN ('cash', 'upi', 'bank', 'other'));
+  END IF;
+END $$;
+
+
+-- ============================================================
+-- SUPPLIER PAYABLE BALANCE
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION apply_supplier_purchase_to_balance()
+RETURNS TRIGGER AS $$
+BEGIN
+
+  IF TG_OP = 'INSERT' THEN
+
+    UPDATE suppliers
+    SET outstanding_balance =
+      outstanding_balance + NEW.total_amount
+    WHERE id = NEW.supplier_id;
+
+  ELSIF TG_OP = 'DELETE' THEN
+
+    UPDATE suppliers
+    SET outstanding_balance =
+      outstanding_balance - OLD.total_amount
+    WHERE id = OLD.supplier_id;
+
+  END IF;
+
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_supplier_purchase_balance
+ON supplier_purchases;
+
+CREATE TRIGGER trg_supplier_purchase_balance
+AFTER INSERT OR DELETE ON supplier_purchases
+FOR EACH ROW
+EXECUTE FUNCTION apply_supplier_purchase_to_balance();
+
+
+-- ============================================================
+-- SUPPLIER PAYMENT BALANCE
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION apply_supplier_payment_to_balance()
+RETURNS TRIGGER AS $$
+BEGIN
+
+  IF TG_OP = 'INSERT' THEN
+
+    UPDATE suppliers
+    SET outstanding_balance =
+      outstanding_balance - NEW.amount
+    WHERE id = NEW.supplier_id;
+
+  ELSIF TG_OP = 'DELETE' THEN
+
+    UPDATE suppliers
+    SET outstanding_balance =
+      outstanding_balance + OLD.amount
+    WHERE id = OLD.supplier_id;
+
+  END IF;
+
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_supplier_payment_balance
+ON supplier_payments;
+
+CREATE TRIGGER trg_supplier_payment_balance
+AFTER INSERT OR DELETE ON supplier_payments
+FOR EACH ROW
+EXECUTE FUNCTION apply_supplier_payment_to_balance();
+
+
+-- ============================================================
+-- SUPPLIER PURCHASE -> INVENTORY
+-- ============================================================
+-- When stock is purchased from a supplier, automatically
+-- increase the product's available stock.
+
+CREATE OR REPLACE FUNCTION apply_supplier_purchase_to_stock()
+RETURNS TRIGGER AS $$
+BEGIN
+
+  IF TG_OP = 'INSERT' THEN
+
+    UPDATE products
+    SET available_stock = available_stock + NEW.quantity,
+        expiry_date = COALESCE(NEW.expiry_date, expiry_date)
+    WHERE id = NEW.product_id;
+
+  ELSIF TG_OP = 'DELETE' THEN
+
+    UPDATE products
+    SET available_stock = available_stock - OLD.quantity
+    WHERE id = OLD.product_id;
+
+  END IF;
+
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_supplier_purchase_stock
+ON supplier_purchases;
+
+CREATE TRIGGER trg_supplier_purchase_stock
+AFTER INSERT OR DELETE ON supplier_purchases
+FOR EACH ROW
+EXECUTE FUNCTION apply_supplier_purchase_to_stock();
+
+
+-- ============================================================
+-- USEFUL SUPPLIER INDEX
+-- ============================================================
+
+CREATE INDEX IF NOT EXISTS idx_suppliers_active
+ON suppliers(active);
