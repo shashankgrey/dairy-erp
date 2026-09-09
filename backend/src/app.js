@@ -14,10 +14,27 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-// CORS_ORIGIN lets you lock this down to your actual deployed frontend
-// URL once you have one (e.g. https://your-app.vercel.app). Defaults
-// to allowing any origin so nothing breaks before that's set.
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+// CORS_ORIGIN is your stable production URL (e.g.
+// https://dairy-erp-pi.vercel.app, no trailing slash). Beyond that,
+// any *.vercel.app origin is allowed too -- Vercel generates a new
+// unique preview URL on every git push while you're actively
+// developing, so hardcoding one exact URL breaks on the next deploy.
+// Once things are stable and you're not pushing new previews all the
+// time, you can tighten this back down to just CORS_ORIGIN.
+const productionOrigin = process.env.CORS_ORIGIN;
+
+app.use(cors({
+  origin(origin, callback) {
+    // Requests with no Origin header (curl, server-to-server, Postman)
+    if (!origin) return callback(null, true);
+
+    if (productionOrigin && origin === productionOrigin) return callback(null, true);
+    if (origin.endsWith('.vercel.app')) return callback(null, true);
+    if (origin === 'http://localhost:5173') return callback(null, true);
+
+    callback(new Error('Not allowed by CORS'));
+  },
+}));
 app.use(express.json());
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
