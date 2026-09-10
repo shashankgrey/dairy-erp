@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { generatePayToken } = require('../utils/payToken');
 
 const SORTABLE_COLUMNS = [
   'full_name',
@@ -128,8 +129,18 @@ async function listCustomers(req, res) {
     params
   );
 
+  // Each customer gets a signed, non-guessable public pay-page link
+  // (see utils/payToken.js) -- used by the Reminders page so the
+  // WhatsApp message can link to a real page instead of a raw upi://
+  // link, without exposing a sequential/enumerable customer ID.
+  const baseUrl = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
+  const rowsWithPayLink = dataResult.rows.map((row) => ({
+    ...row,
+    pay_url: `${baseUrl}/pay/${row.id}/${generatePayToken(row.id)}`,
+  }));
+
   res.json({
-    data: dataResult.rows,
+    data: rowsWithPayLink,
     pagination: {
       page: pageNum,
       limit: pageSize,
@@ -234,8 +245,7 @@ async function getPurchaseHistory(req, res) {
 
 // POST /api/customers
 // full_name/mobile_number/email format are already guaranteed valid
-// here by the validate(customerBodySchema) middleware -- this only
-// needs to handle the business rule (duplicate mobile -> restore).
+// here by the validate(customerBodySchema) middleware.
 async function createCustomer(req, res) {
   const {
     full_name,

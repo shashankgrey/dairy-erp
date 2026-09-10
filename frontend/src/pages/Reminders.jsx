@@ -8,33 +8,19 @@ function currentMonthKey() {
   return new Date().toISOString().slice(0, 7); // 'YYYY-MM'
 }
 
-// Builds a standard NPCI UPI deep link. Any UPI app (GPay, PhonePe,
-// Paytm, BHIM) recognizes this scheme and opens straight to a
-// pre-filled payment screen when tapped from a phone.
-function buildUpiLink(customer, settings) {
-  if (!settings?.shop_upi_id) return null;
-  const amount = Number(customer.outstanding_balance).toFixed(2);
-  const params = new URLSearchParams({
-    pa: settings.shop_upi_id,
-    pn: settings.shop_payee_name || 'Dairy Shop',
-    am: amount,
-    cu: 'INR',
-    tn: `Payment from ${customer.full_name}`,
-  });
-  return `upi://pay?${params.toString()}`;
-}
-
+// The backend now generates a signed public pay-page link per customer
+// (customer.pay_url) -- a real https:// page with proper Open Graph
+// tags, so WhatsApp actually renders a preview card instead of plain
+// text. The old raw upi:// deep link is gone from here entirely; the
+// pay page itself is what triggers that when the customer taps it.
 function buildMessage(customer, settings) {
   const amount = Number(customer.outstanding_balance).toLocaleString('en-IN');
   let msg = `Hi ${customer.full_name}, this is a reminder from Dairy ERP that your outstanding balance is ₹${amount}. Kindly clear the payment at your earliest convenience.`;
 
-  const upiLink = buildUpiLink(customer, settings);
-  if (upiLink) {
-    msg += `\n\nPay now: ${upiLink}`;
-    // Plain-text fallback -- upi:// links don't always render as
-    // tappable inside WhatsApp depending on the phone/app version, so
-    // the UPI ID itself is included as a manual backup.
-    msg += `\n(If the link above doesn't open, pay manually to UPI ID: ${settings.shop_upi_id})`;
+  if (customer.pay_url) {
+    msg += `\n\nPay now: ${customer.pay_url}`;
+  } else if (settings?.shop_upi_id) {
+    msg += `\n\n(Pay manually to UPI ID: ${settings.shop_upi_id})`;
   }
 
   msg += '\n\nThank you!';
@@ -127,7 +113,7 @@ export default function Reminders() {
 
       {settings && !upiConfigured && (
         <div className="flex items-center justify-between gap-3 text-sm rounded-lg px-4 py-2.5 bg-amber-50 dark:bg-amber-500/10 text-[color:var(--color-balance-owing)]">
-          <span>No UPI ID set up yet — reminders will go out without a tap-to-pay link.</span>
+          <span>No UPI ID set up yet — the pay page will show a message asking customers to pay in person instead.</span>
           <Link to="/settings" className="inline-flex items-center gap-1.5 font-semibold hover:underline shrink-0">
             <SettingsIcon size={14} /> Set up now
           </Link>
