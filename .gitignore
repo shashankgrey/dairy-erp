@@ -7,6 +7,9 @@ dist/
 build/
 .vite/
 
+desktop/node_modules/
+desktop/dist/
+
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
