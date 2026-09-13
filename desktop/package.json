@@ -1,0 +1,26 @@
+{
+  "name": "dairy-erp-desktop",
+  "version": "1.0.0",
+  "description": "Dairy ERP Desktop Application",
+  "main": "main.js",
+  "author": "Dairy ERP",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.dairyerp.desktop",
+    "productName": "Dairy ERP",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  }
+}

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { MessageCircle, Check, AlertCircle, RefreshCw, RotateCcw, Settings as SettingsIcon } from 'lucide-react';
+import { MessageCircle, Check, AlertCircle, RefreshCw, RotateCcw, Settings as SettingsIcon, ArrowRight, X, Send } from 'lucide-react';
 import api from '../lib/api';
 import { useApiResource } from '../hooks/useApiResource';
 
@@ -8,11 +8,6 @@ function currentMonthKey() {
   return new Date().toISOString().slice(0, 7); // 'YYYY-MM'
 }
 
-// The backend now generates a signed public pay-page link per customer
-// (customer.pay_url) -- a real https:// page with proper Open Graph
-// tags, so WhatsApp actually renders a preview card instead of plain
-// text. The old raw upi:// deep link is gone from here entirely; the
-// pay page itself is what triggers that when the customer taps it.
 function buildMessage(customer, settings) {
   const amount = Number(customer.outstanding_balance).toLocaleString('en-IN');
   let msg = `Hi ${customer.full_name}, this is a reminder from Dairy ERP that your outstanding balance is ₹${amount}. Kindly clear the payment at your earliest convenience.`;
@@ -84,6 +79,17 @@ export default function Reminders() {
   }, [customerList]);
 
   const sentCount = withMobile.filter((c) => sentIds.has(c.id)).length;
+  const unsent = withMobile.filter((c) => !sentIds.has(c.id));
+
+  // "Send All" queue -- a list of customer IDs still to go through this
+  // session. Each step still requires a real click, since WhatsApp
+  // itself requires a human tap to actually send a message; this just
+  // removes the need to hunt through the table row by row in between.
+  const [queue, setQueue] = useState(null); // null = not in a send-all session
+
+  const queueCustomer = queue && queue.length > 0
+    ? withMobile.find((c) => c.id === queue[0])
+    : null;
 
   function markSent(id) {
     setSentIds((prev) => new Set(prev).add(id));
@@ -97,19 +103,89 @@ export default function Reminders() {
     });
   }
 
-  function handleSend(customer) {
+  function openWhatsApp(customer) {
     window.open(buildWhatsAppLink(customer, settings), '_blank', 'noopener,noreferrer');
+  }
+
+  function handleSend(customer) {
+    openWhatsApp(customer);
     markSent(customer.id);
   }
 
+  function startSendAll() {
+    if (unsent.length === 0) return;
+    const ids = unsent.map((c) => c.id);
+    setQueue(ids);
+    const first = withMobile.find((c) => c.id === ids[0]);
+    if (first) {
+      openWhatsApp(first);
+      markSent(first.id);
+    }
+  }
+
+  function handleSendNext() {
+    if (!queue || queue.length === 0) return;
+    const remaining = queue.slice(1);
+    setQueue(remaining);
+    if (remaining.length > 0) {
+      const next = withMobile.find((c) => c.id === remaining[0]);
+      if (next) {
+        openWhatsApp(next);
+        markSent(next.id);
+      }
+    }
+  }
+
+  function stopSendAll() {
+    setQueue(null);
+  }
+
+  const inQueueMode = queue !== null && queue.length > 0;
+
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold">Payment Reminders</h1>
-        <p className="text-sm text-muted-light dark:text-muted-dark">
-          Every active customer with an outstanding balance, ready to remind over WhatsApp.
-        </p>
+    <div className="space-y-4 pb-4">
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-xl font-bold">Payment Reminders</h1>
+          <p className="text-sm text-muted-light dark:text-muted-dark">
+            Every active customer with an outstanding balance, ready to remind over WhatsApp.
+          </p>
+        </div>
+        {!loading && !error && unsent.length > 0 && !inQueueMode && (
+          <button
+            onClick={startSendAll}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold"
+          >
+            <Send size={15} /> Send All ({unsent.length})
+          </button>
+        )}
       </div>
+
+      {inQueueMode && (
+        <div className="flex items-center justify-between gap-3 rounded-lg px-4 py-3 bg-brand-50 dark:bg-brand-500/10 border border-brand-500/20">
+          <div className="text-sm">
+            <span className="font-semibold text-brand-500 dark:text-brand-400">
+              {queueCustomer ? `Sent to ${queueCustomer.full_name}` : 'Done'}
+            </span>
+            <span className="text-muted-light dark:text-muted-dark"> — {queue.length} remaining. Tap Send inside WhatsApp, then continue here.</span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleSendNext}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold"
+            >
+              Send Next <ArrowRight size={13} />
+            </button>
+            <button
+              onClick={stopSendAll}
+              className="p-1.5 rounded-lg hover:bg-white/50 dark:hover:bg-white/5 text-muted-light dark:text-muted-dark"
+              title="Stop"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {settings && !upiConfigured && (
         <div className="flex items-center justify-between gap-3 text-sm rounded-lg px-4 py-2.5 bg-amber-50 dark:bg-amber-500/10 text-[color:var(--color-balance-owing)]">
