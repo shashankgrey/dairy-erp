@@ -20,7 +20,7 @@ async function seed() {
     'INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3)',
     [name, email, passwordHash]
   );
-  console.log(`✓ Account created: ${email} / ${password}  (change this password after first login!)`);
+  console.log(`Account created: ${email}`);
   await pool.end();
 }
 
