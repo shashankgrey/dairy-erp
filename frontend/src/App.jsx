@@ -9,6 +9,7 @@ import Customers from './pages/Customers';
 import CustomerProfile from './pages/CustomerProfile';
 import Products from './pages/Products';
 import Purchases from './pages/Purchases';
+import Billing from './pages/Billing';
 import Suppliers from './pages/Suppliers';
 import SupplierProfile from './pages/SupplierProfile';
 import Reminders from './pages/Reminders';
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="/customers" element={<Protected><Customers /></Protected>} />
             <Route path="/customers/:id" element={<Protected><CustomerProfile /></Protected>} />
             <Route path="/products" element={<Protected><Products /></Protected>} />
+            <Route path="/billing" element={<Protected><Billing /></Protected>} />
             <Route path="/purchases" element={<Protected><Purchases /></Protected>} />
             <Route path="/suppliers" element={<Protected><Suppliers /></Protected>} />
             <Route path="/suppliers/:id" element={<Protected><SupplierProfile /></Protected>} />

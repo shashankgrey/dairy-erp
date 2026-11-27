@@ -1,19 +1,25 @@
 const crypto = require('crypto');
 
 // Generates a short, non-guessable token tied to a customer ID, using
-// JWT_SECRET as the signing key. This is what makes the public /pay
-// page safe to expose without login: a raw sequential customer ID in
-// the URL would let anyone enumerate other customers' names and
-// amounts just by incrementing the number. The token can't be
-// forged or guessed without knowing JWT_SECRET, and doesn't require
-// storing anything new in the database -- it's recomputed and
-// verified on the fly.
+// JWT_SECRET as the signing key. This is what makes the public /p page
+// safe to expose without login: a raw sequential customer ID in the
+// URL would let anyone enumerate other customers' names and amounts
+// just by incrementing the number. The token can't be forged or
+// guessed without knowing JWT_SECRET, and doesn't require storing
+// anything new in the database -- it's recomputed and verified on
+// the fly.
+//
+// Truncated to 12 hex chars (48 bits) rather than the original 16 --
+// deliberately shorter so the link looks cleaner in a WhatsApp
+// message, while still being far beyond anything guessable by hand
+// for data this low-stakes (a name and an amount owed, nothing
+// financial or sensitive stored behind it).
 function generatePayToken(customerId) {
   return crypto
     .createHmac('sha256', process.env.JWT_SECRET)
     .update(String(customerId))
     .digest('hex')
-    .slice(0, 16);
+    .slice(0, 12);
 }
 
 function verifyPayToken(customerId, token) {

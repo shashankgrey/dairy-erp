@@ -35,7 +35,7 @@ export default function Login() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
           <div className="text-4xl mb-2">🥛</div>
-          <h1 className="text-xl font-bold text-brand-500 dark:text-brand-400">Dairy ERP</h1>
+          <h1 className="text-xl font-bold text-brand-500 dark:text-brand-400">Sri Sai Esha Dairy Products</h1>
         </div>
 
         <form

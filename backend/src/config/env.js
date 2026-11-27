@@ -26,6 +26,19 @@ function validateEnv() {
       console.warn('(fine for local dev, but set these explicitly -- or set DATABASE_URL -- for anything else)\n');
     }
   }
+  warnSmsConfig();
 }
 
-module.exports = { validateEnv };
+// SMS is optional: without config the app stays in safe test mode.
+function warnSmsConfig() {
+  const mode = (process.env.SMS_MODE || 'test').toLowerCase();
+  if (mode === 'test') {
+    console.log('SMS_MODE=test: SMS reminders are recorded but NOT sent.');
+    return;
+  }
+  const need = ['FAST2SMS_API_KEY'].concat(mode === 'dlt' ? ['FAST2SMS_SENDER_ID', 'FAST2SMS_TEMPLATE_ID'] : []);
+  const missing = need.filter((k) => !process.env[k] || !process.env[k].trim());
+  if (missing.length) console.warn(`SMS_MODE=${mode} but missing: ${missing.join(', ')} -- SMS sending will fail.`);
+}
+
+module.exports = { validateEnv, warnSmsConfig };

@@ -78,7 +78,7 @@ function renderErrorPage(res, message, status = 404) {
   `));
 }
 
-// GET /pay/:id/:token -- public, no login. Only reveals the customer's
+// GET /p/:id/:token -- public, no login. Only reveals the customer's
 // own name and amount owed, and only when the token matches -- never
 // the customer's phone number, address, purchase history, or anything
 // about other customers.
@@ -129,7 +129,7 @@ async function renderPayPage(req, res) {
   const upiLink = `upi://pay?${upiParams.toString()}`;
 
   const baseUrl = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
-  const pageUrl = `${baseUrl}/pay/${id}/${token}`;
+  const pageUrl = `${baseUrl}/p/${id}/${token}`;
   const imageUrl = `${baseUrl}/pay-preview.png`;
 
   const title = `Pay ₹${amount.toLocaleString('en-IN')} to ${payeeName}`;

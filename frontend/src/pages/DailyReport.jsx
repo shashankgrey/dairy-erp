@@ -5,14 +5,14 @@ import { useApiResource } from '../hooks/useApiResource';
 import { generateDailyReportPDF } from '../lib/exportUtils';
 import ToggleTabs from '../components/ToggleTabs';
 
-const money = (value) => `₹${Number(value || 0).toLocaleString('en-IN')}`;
+const qty = (n) => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const today = () => new Date().toISOString().slice(0, 10);
 
 function Card({ label, value, note }) {
   return (
     <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-5 shadow-[var(--shadow-card)]">
       <p className="text-sm text-muted-light dark:text-muted-dark">{label}</p>
-      <p className="text-2xl font-bold mt-1">{money(value)}</p>
+      <p className="text-2xl font-bold mt-1">{value}</p>
       {note && <p className="text-xs text-muted-light dark:text-muted-dark mt-2">{note}</p>}
     </div>
   );
@@ -28,9 +28,7 @@ function CardSkeleton() {
   );
 }
 
-// Itemized breakdown table used under each summary section (sales,
-// collections, stock purchases, supplier payments) -- shows real
-// names/amounts instead of just the aggregate total above it.
+// Itemized table: per-product totals or per-entry detail.
 function DetailTable({ title, columns, rows }) {
   return (
     <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl overflow-hidden shadow-[var(--shadow-card)]">
@@ -80,26 +78,19 @@ export default function DailyReport() {
 
   const { data: report, loading, error, reload: load } = useApiResource(fetchReport);
 
-  function methods(items) {
-    const parts = Object.entries(items)
-      .filter(([, amount]) => amount)
-      .map(([method, amount]) => `${method.toUpperCase()} ${money(amount)}`);
-    return parts.length ? parts.join(' • ') : 'No payments';
-  }
-
-  // The PDF always contains the full report (both customer and
-  // supplier sections) regardless of which tab is active on screen --
-  // it's a complete document, not a screenshot of the current view.
+  // The PDF always has both the customer and supplier sections.
   function handleDownload() {
     if (report) generateDailyReportPDF(report);
   }
+
+  const dairy = report?.dairy;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold">Daily Reports</h1>
-          <p className="text-sm text-muted-light dark:text-muted-dark">Customer collections and supplier activity in one place.</p>
+          <p className="text-sm text-muted-light dark:text-muted-dark">What went out to customers and what came in from suppliers.</p>
         </div>
         <div className="flex items-center gap-2">
           <input
@@ -129,10 +120,9 @@ export default function DailyReport() {
             <RefreshCw size={14} /> Retry
           </button>
         </div>
-      ) : loading || !report ? (
+      ) : loading || !report || !dairy ? (
         <div className="space-y-6">
           <div className="grid sm:grid-cols-2 gap-4"><CardSkeleton /><CardSkeleton /></div>
-          <div className="grid sm:grid-cols-3 gap-4"><CardSkeleton /><CardSkeleton /><CardSkeleton /></div>
         </div>
       ) : (
         <>
@@ -148,69 +138,54 @@ export default function DailyReport() {
           {view === 'customer' ? (
             <section className="space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
-                <Card label="Sales" value={report.sales.total} note={`${report.sales.entries} sale entries`} />
-                <Card label="Collections" value={report.collections.total} note={methods(report.collections.byMethod)} />
+                <Card label="Customers served" value={dairy.customersServed} />
+                <Card label="Entries" value={report.sales.entries} note={`${dairy.soldByProduct.length} different products`} />
               </div>
               <DetailTable
-                title="Sales — who bought what"
+                title="Sold — total per product"
+                rows={dairy.soldByProduct}
+                columns={[
+                  { key: 'product_name', label: 'Product' },
+                  { key: 'quantity', label: 'Quantity', render: (r) => `${qty(r.quantity)} ${r.unit}` },
+                  { key: 'customers', label: 'Customers' },
+                ]}
+              />
+              <DetailTable
+                title="Who bought what"
                 rows={report.sales.items}
                 columns={[
                   { key: 'customer_name', label: 'Customer' },
                   { key: 'product_name', label: 'Product' },
-                  { key: 'quantity', label: 'Qty', render: (r) => `${r.quantity} ${r.unit}` },
-                  { key: 'unit_price', label: 'Rate', render: (r) => money(r.unit_price) },
-                  { key: 'total_amount', label: 'Amount', render: (r) => money(r.total_amount) },
-                ]}
-              />
-              <DetailTable
-                title="Collections — who paid"
-                rows={report.collections.items}
-                columns={[
-                  { key: 'customer_name', label: 'Customer' },
-                  { key: 'payment_method', label: 'Method', render: (r) => r.payment_method.toUpperCase() },
-                  { key: 'amount', label: 'Amount', render: (r) => money(r.amount) },
-                  { key: 'notes', label: 'Notes' },
+                  { key: 'quantity', label: 'Qty', render: (r) => `${qty(r.quantity)} ${r.unit}` },
                 ]}
               />
             </section>
           ) : (
             <section className="space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
-                <Card label="Stock Purchased" value={report.stockPurchases.total} note={`${report.stockPurchases.entries} supplier purchase entries`} />
-                <Card label="Supplier Payments" value={report.supplierPayments.total} note={methods(report.supplierPayments.byMethod)} />
+                <Card label="Deliveries received" value={report.stockPurchases.entries} />
+                <Card label="Products received" value={dairy.receivedByProduct.length} />
               </div>
               <DetailTable
-                title="Stock Purchases — what came in"
+                title="Received — total per product"
+                rows={dairy.receivedByProduct}
+                columns={[
+                  { key: 'product_name', label: 'Product' },
+                  { key: 'quantity', label: 'Quantity', render: (r) => `${qty(r.quantity)} ${r.unit}` },
+                  { key: 'suppliers', label: 'Suppliers' },
+                ]}
+              />
+              <DetailTable
+                title="Who delivered what"
                 rows={report.stockPurchases.items}
                 columns={[
                   { key: 'supplier_name', label: 'Supplier' },
                   { key: 'product_name', label: 'Product' },
-                  { key: 'quantity', label: 'Qty', render: (r) => `${r.quantity} ${r.unit}` },
-                  { key: 'unit_cost', label: 'Cost/Unit', render: (r) => money(r.unit_cost) },
-                  { key: 'total_amount', label: 'Amount', render: (r) => money(r.total_amount) },
-                ]}
-              />
-              <DetailTable
-                title="Supplier Payments — who we paid"
-                rows={report.supplierPayments.items}
-                columns={[
-                  { key: 'supplier_name', label: 'Supplier' },
-                  { key: 'payment_method', label: 'Method', render: (r) => r.payment_method.toUpperCase() },
-                  { key: 'amount', label: 'Amount', render: (r) => money(r.amount) },
-                  { key: 'reference_number', label: 'Reference' },
+                  { key: 'quantity', label: 'Qty', render: (r) => `${qty(r.quantity)} ${r.unit}` },
                 ]}
               />
             </section>
           )}
-
-          <section>
-            <h2 className="font-semibold mb-3">Current money position</h2>
-            <div className="grid sm:grid-cols-3 gap-4">
-              <Card label="Customer Receivables" value={report.receivables} />
-              <Card label="Supplier Payables" value={report.payables} />
-              <Card label="Net Receivable" value={report.netReceivable} />
-            </div>
-          </section>
         </>
       )}
     </div>

@@ -12,9 +12,9 @@ async function listSuppliers(req, res) {
   }
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   const result = await pool.query(
-    `SELECT s.*, COALESCE(sp.total_purchased, 0) AS total_purchased, COALESCE(pay.total_paid, 0) AS total_paid
+    `SELECT s.*, COALESCE(sp.total_purchased, 0) AS total_purchased, COALESCE(sp.deliveries, 0)::int AS deliveries, sp.last_delivery, COALESCE(pay.total_paid, 0) AS total_paid
      FROM suppliers s
-     LEFT JOIN (SELECT supplier_id, SUM(total_amount) AS total_purchased FROM supplier_purchases GROUP BY supplier_id) sp ON sp.supplier_id = s.id
+     LEFT JOIN (SELECT supplier_id, SUM(total_amount) AS total_purchased, COUNT(*) AS deliveries, to_char(MAX(purchase_date), 'YYYY-MM-DD') AS last_delivery FROM supplier_purchases GROUP BY supplier_id) sp ON sp.supplier_id = s.id
      LEFT JOIN (SELECT supplier_id, SUM(amount) AS total_paid FROM supplier_payments GROUP BY supplier_id) pay ON pay.supplier_id = s.id
      ${where} ORDER BY s.full_name`, params
   );

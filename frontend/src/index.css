@@ -110,3 +110,71 @@ select option {
 .dark input[type="datetime-local"] {
   color-scheme: dark;
 }
+
+/* ================== TOUCH MODE ==================
+   Active when <html> has the "touch" class (toggled from the hand icon
+   in the top bar). Written once here instead of editing every
+   component, so every page and modal picks it up automatically.
+   Unlayered CSS beats Tailwind's layered utilities, so these override
+   the compact sizes (py-1.5, text-sm, ...) without !important. */
+
+/* No double-tap-zoom delay on a touchscreen */
+html.touch,
+html.touch body {
+  touch-action: manipulation;
+}
+
+/* Minimum comfortable tap target (~48px) for anything you press */
+.touch button,
+.touch select,
+.touch input:not([type="checkbox"]):not([type="radio"]),
+.touch textarea {
+  min-height: 48px;
+}
+
+/* Icon-only buttons (edit, delete, close, pagination) become square */
+.touch button {
+  min-width: 48px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Visible press feedback, since there is no hover on a touchscreen */
+.touch button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+/* Easier-to-read text in form controls */
+.touch input:not([type="checkbox"]):not([type="radio"]),
+.touch select,
+.touch textarea {
+  font-size: 1rem;
+}
+
+.touch button.text-xs {
+  font-size: 0.875rem;
+}
+
+.touch input[type="checkbox"],
+.touch input[type="radio"] {
+  width: 24px;
+  height: 24px;
+}
+
+/* Sidebar menu items */
+.touch aside nav a {
+  min-height: 52px;
+  font-size: 1rem;
+}
+
+/* Sortable table headers */
+.touch th.cursor-pointer {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+/* Breathing room between adjacent row-action icons (edit / delete) so
+   a fat-finger tap doesn't hit the wrong one */
+.touch td .gap-1 {
+  gap: 0.5rem;
+}

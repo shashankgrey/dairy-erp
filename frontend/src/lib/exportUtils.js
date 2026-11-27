@@ -90,7 +90,7 @@ export function generateBillPDF(bill) {
 
   doc.setFontSize(18);
   doc.setTextColor(15, 94, 76);
-  doc.text('Dairy ERP', 14, 18);
+  doc.text('Sri Sai Esha Dairy Products', 14, 18);
 
   doc.setFontSize(11);
   doc.setTextColor(80, 80, 80);
@@ -204,16 +204,8 @@ export function generateBillPDF(bill) {
 // consistent across the app.
 export function generateDailyReportPDF(report) {
   const doc = new jsPDF();
-  const {
-    date,
-    sales,
-    collections,
-    stockPurchases,
-    supplierPayments,
-    receivables,
-    payables,
-    netReceivable,
-  } = report;
+  const { date, sales, stockPurchases, dairy } = report;
+  const q = (n) => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
   const formattedDate = new Date(date).toLocaleDateString('en-IN', {
     year: 'numeric',
@@ -223,7 +215,7 @@ export function generateDailyReportPDF(report) {
 
   doc.setFontSize(18);
   doc.setTextColor(15, 94, 76);
-  doc.text('Dairy ERP', 14, 18);
+  doc.text('Sri Sai Esha Dairy Products', 14, 18);
 
   doc.setFontSize(11);
   doc.setTextColor(80, 80, 80);
@@ -233,16 +225,11 @@ export function generateDailyReportPDF(report) {
   doc.line(14, 31, 196, 31);
 
   let cursorY = 40;
-
   doc.setFontSize(10);
   doc.setTextColor(30, 30, 30);
-  doc.text(`Customer Receivables: Rs. ${receivables}`, 14, cursorY);
-  doc.text(`Supplier Payables: Rs. ${payables}`, 14, cursorY + 6);
-  doc.setFont(undefined, 'bold');
-  doc.text(`Net Receivable: Rs. ${netReceivable}`, 14, cursorY + 13);
-  doc.setFont(undefined, 'normal');
-
-  cursorY += 24;
+  doc.text(`Customers served: ${dairy.customersServed}   ·   Sale entries: ${sales.entries}`, 14, cursorY);
+  doc.text(`Supplier deliveries: ${stockPurchases.entries}`, 14, cursorY + 6);
+  cursorY += 16;
 
   function ensureSpace(needed) {
     if (cursorY + needed > 280) {
@@ -253,14 +240,12 @@ export function generateDailyReportPDF(report) {
 
   function section(title, head, rows) {
     if (rows.length === 0) return;
-
     ensureSpace(20);
     doc.setFontSize(11);
     doc.setTextColor(15, 94, 76);
     doc.setFont(undefined, 'bold');
     doc.text(title, 14, cursorY);
     doc.setFont(undefined, 'normal');
-
     autoTable(doc, {
       startY: cursorY + 4,
       head: [head],
@@ -269,63 +254,21 @@ export function generateDailyReportPDF(report) {
       styles: { fontSize: 9 },
       margin: { left: 14, right: 14 },
     });
-
     cursorY = doc.lastAutoTable.finalY + 12;
   }
 
-  section(
-    `Customer Sales (${sales.entries} entries — Rs. ${sales.total})`,
-    ['Customer', 'Product', 'Qty', 'Rate', 'Amount'],
-    sales.items.map((s) => [
-      s.customer_name,
-      s.product_name,
-      `${s.quantity} ${s.unit}`,
-      `Rs. ${s.unit_price}`,
-      `Rs. ${s.total_amount}`,
-    ])
-  );
-
-  section(
-    `Customer Collections (Rs. ${collections.total})`,
-    ['Customer', 'Method', 'Amount', 'Notes'],
-    collections.items.map((c) => [
-      c.customer_name,
-      c.payment_method.toUpperCase(),
-      `Rs. ${c.amount}`,
-      c.notes || '-',
-    ])
-  );
-
-  section(
-    `Supplier Stock Purchases (${stockPurchases.entries} entries — Rs. ${stockPurchases.total})`,
-    ['Supplier', 'Product', 'Qty', 'Cost/Unit', 'Amount'],
-    stockPurchases.items.map((s) => [
-      s.supplier_name,
-      s.product_name,
-      `${s.quantity} ${s.unit}`,
-      `Rs. ${s.unit_cost}`,
-      `Rs. ${s.total_amount}`,
-    ])
-  );
-
-  section(
-    `Supplier Payments (Rs. ${supplierPayments.total})`,
-    ['Supplier', 'Method', 'Amount', 'Reference'],
-    supplierPayments.items.map((s) => [
-      s.supplier_name,
-      s.payment_method.toUpperCase(),
-      `Rs. ${s.amount}`,
-      s.reference_number || '-',
-    ])
-  );
+  section('Sold — total per product', ['Product', 'Quantity', 'Customers'],
+    dairy.soldByProduct.map((r) => [r.product_name, `${q(r.quantity)} ${r.unit}`, r.customers]));
+  section('Who bought what', ['Customer', 'Product', 'Qty'],
+    sales.items.map((s) => [s.customer_name, s.product_name, `${q(s.quantity)} ${s.unit}`]));
+  section('Received from suppliers — total per product', ['Product', 'Quantity', 'Suppliers'],
+    dairy.receivedByProduct.map((r) => [r.product_name, `${q(r.quantity)} ${r.unit}`, r.suppliers]));
+  section('Who delivered what', ['Supplier', 'Product', 'Qty'],
+    stockPurchases.items.map((s) => [s.supplier_name, s.product_name, `${q(s.quantity)} ${s.unit}`]));
 
   doc.setFontSize(8);
   doc.setTextColor(150, 150, 150);
-  doc.text(
-    `Generated on ${new Date().toLocaleDateString('en-IN')}`,
-    14,
-    290
-  );
+  doc.text(`Generated on ${new Date().toLocaleDateString('en-IN')}`, 14, 290);
 
   doc.save(`daily-report-${date}.pdf`);
 }

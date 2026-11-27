@@ -7,6 +7,9 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Bumped on every password change, which signs out all older logins.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
+
 -- ================== CUSTOMERS ==================
 CREATE SEQUENCE IF NOT EXISTS customer_code_seq START 1;
 
@@ -473,3 +476,37 @@ EXECUTE FUNCTION apply_supplier_purchase_to_stock();
 
 CREATE INDEX IF NOT EXISTS idx_suppliers_active
 ON suppliers(active);
+
+-- ============================================================
+-- SMS REMINDERS (Fast2SMS) -- one row per attempt
+-- ============================================================
+CREATE TABLE IF NOT EXISTS sms_reminders (
+  id SERIAL PRIMARY KEY,
+  customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+  mobile TEXT,
+  amount NUMERIC(12,2),
+  message TEXT,
+  status TEXT NOT NULL CHECK (status IN ('sent', 'failed', 'test')),
+  error TEXT,
+  provider_request_id TEXT,
+  trigger TEXT NOT NULL CHECK (trigger IN ('auto', 'manual', 'single')),
+  period TEXT NOT NULL,          -- 'YYYY-MM' (India time)
+  mode TEXT,                     -- test | quick | dlt
+  created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sms_reminders_period ON sms_reminders (period, trigger);
+CREATE INDEX IF NOT EXISTS idx_sms_reminders_customer ON sms_reminders (customer_id, period);
+
+-- ============================================================
+-- DAILY SUMMARY SMS TO THE OWNER -- one row per day (the primary key
+-- is what guarantees it is never sent twice for the same day)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS daily_summaries (
+  summary_date DATE PRIMARY KEY,
+  mobile TEXT,
+  message TEXT,
+  status TEXT NOT NULL CHECK (status IN ('sending', 'sent', 'failed', 'test')),
+  error TEXT,
+  mode TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
