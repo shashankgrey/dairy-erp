@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Users, UserCheck, ReceiptText, PackageX, AlertCircle, RefreshCw } from 'lucide-react';
 import api from '../lib/api';
+import { FEATURES } from '../lib/features';
 import { useApiResource } from '../hooks/useApiResource';
 
 const qty = (n) => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
@@ -108,7 +109,7 @@ export default function Dashboard() {
       <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl overflow-hidden shadow-[var(--shadow-card)]">
         <div className="px-5 py-3 border-b border-border-light dark:border-border-dark">
           <h2 className="font-semibold">Today's products</h2>
-          <p className="text-xs text-muted-light dark:text-muted-dark">What went out, what came in, and what's left.</p>
+          <p className="text-xs text-muted-light dark:text-muted-dark">{FEATURES.suppliers ? "What went out, what came in, and what's left." : "What went out today and what's left."}</p>
         </div>
         {loading && !stats ? (
           <div className="p-8 text-center text-sm text-muted-light dark:text-muted-dark">Loading…</div>
@@ -121,7 +122,7 @@ export default function Dashboard() {
                 <tr>
                   <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">Product</th>
                   <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">Sold today</th>
-                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">Received today</th>
+                  {FEATURES.suppliers && <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">Received today</th>}
                   <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">In stock</th>
                 </tr>
               </thead>
@@ -130,7 +131,7 @@ export default function Dashboard() {
                   <tr key={p.id} className="border-b border-border-light dark:border-border-dark last:border-0">
                     <td className="px-4 py-3 font-medium">{p.name}</td>
                     <td className="px-4 py-3 text-right font-semibold">{p.soldToday ? `${qty(p.soldToday)} ${p.unit}` : '—'}</td>
-                    <td className="px-4 py-3 text-right">{p.receivedToday ? `${qty(p.receivedToday)} ${p.unit}` : '—'}</td>
+                    {FEATURES.suppliers && <td className="px-4 py-3 text-right">{p.receivedToday ? `${qty(p.receivedToday)} ${p.unit}` : '—'}</td>}
                     <td className={`px-4 py-3 text-right ${p.lowStock ? 'text-red-600 font-semibold' : ''}`}>
                       {qty(p.stock)} {p.unit}{p.lowStock ? ' · low' : ''}
                     </td>

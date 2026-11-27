@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -8,12 +8,12 @@ import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import CustomerProfile from './pages/CustomerProfile';
 import Products from './pages/Products';
-import Purchases from './pages/Purchases';
 import Billing from './pages/Billing';
 import Suppliers from './pages/Suppliers';
 import SupplierProfile from './pages/SupplierProfile';
 import Reminders from './pages/Reminders';
 import DailyReport from './pages/DailyReport';
+import { FEATURES } from './lib/features';
 import Settings from './pages/Settings';
 
 function Protected({ children }) {
@@ -36,12 +36,14 @@ export default function App() {
             <Route path="/customers/:id" element={<Protected><CustomerProfile /></Protected>} />
             <Route path="/products" element={<Protected><Products /></Protected>} />
             <Route path="/billing" element={<Protected><Billing /></Protected>} />
-            <Route path="/purchases" element={<Protected><Purchases /></Protected>} />
-            <Route path="/suppliers" element={<Protected><Suppliers /></Protected>} />
-            <Route path="/suppliers/:id" element={<Protected><SupplierProfile /></Protected>} />
+            {/* Daily Entry is replaced by Billing; old links land there. */}
+            <Route path="/purchases" element={<Navigate to="/billing" replace />} />
+            {FEATURES.suppliers && <Route path="/suppliers" element={<Protected><Suppliers /></Protected>} />}
+            {FEATURES.suppliers && <Route path="/suppliers/:id" element={<Protected><SupplierProfile /></Protected>} />}
             <Route path="/reminders" element={<Protected><Reminders /></Protected>} />
             <Route path="/reports" element={<Protected><DailyReport /></Protected>} />
             <Route path="/settings" element={<Protected><Settings /></Protected>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

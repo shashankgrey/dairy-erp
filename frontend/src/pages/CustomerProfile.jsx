@@ -16,6 +16,8 @@ export default function CustomerProfile() {
   const [page, setPage] = useState(1);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [purchaseToDelete, setPurchaseToDelete] = useState(null);
+  const [purchaseError, setPurchaseError] = useState(null);
 
   // Purchase history filters
   const [products, setProducts] = useState([]);
@@ -59,7 +61,7 @@ export default function CustomerProfile() {
     });
     return data;
   }, [id, page, filterProductId, fromDate, toDate]);
-  const { data: purchaseResult, loading: purchasesLoading } = useApiResource(fetchPurchases);
+  const { data: purchaseResult, loading: purchasesLoading, reload: loadPurchases } = useApiResource(fetchPurchases);
   const purchases = purchaseResult?.data ?? [];
   const pagination = purchaseResult?.pagination ?? { page: 1, totalPages: 1, total: 0 };
 
@@ -89,6 +91,21 @@ export default function CustomerProfile() {
       loadPayments();
     } catch (err) {
       console.error('Failed to delete payment:', err);
+    }
+  }
+
+  // Removes one wrong entry. The database puts the stock back and takes
+  // the amount off the customer's balance.
+  async function handleDeletePurchase() {
+    const p = purchaseToDelete;
+    setPurchaseToDelete(null);
+    setPurchaseError(null);
+    try {
+      await api.delete(`/purchases/${p.id}`);
+      loadCustomer();
+      loadPurchases();
+    } catch (err) {
+      setPurchaseError(err.response?.data?.error || 'Could not delete the entry.');
     }
   }
 
@@ -265,6 +282,7 @@ export default function CustomerProfile() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">Qty</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">Rate</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">Amount</th>
+                <th className="px-4 py-3"><span className="sr-only">Delete</span></th>
               </tr>
             </thead>
             <tbody>
@@ -276,10 +294,11 @@ export default function CustomerProfile() {
                     <td className="px-4 py-3"><div className="h-4 w-12 bg-border-light dark:bg-border-dark rounded" /></td>
                     <td className="px-4 py-3"><div className="h-4 w-14 bg-border-light dark:bg-border-dark rounded" /></td>
                     <td className="px-4 py-3"><div className="h-4 w-16 bg-border-light dark:bg-border-dark rounded" /></td>
+                    <td className="px-4 py-3" />
                   </tr>
                 ))
               ) : purchases.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-8 text-muted-light dark:text-muted-dark">
+                <tr><td colSpan={6} className="text-center py-8 text-muted-light dark:text-muted-dark">
                   {hasActiveFilters ? 'No purchases match these filters.' : 'No purchases recorded yet.'}
                 </td></tr>
               ) : (
@@ -292,6 +311,15 @@ export default function CustomerProfile() {
                     <td className="px-4 py-3">{p.quantity} {p.unit}</td>
                     <td className="px-4 py-3">₹{p.unit_price}</td>
                     <td className="px-4 py-3 font-medium">₹{p.total_amount}</td>
+                    <td className="px-2 py-1 text-right">
+                      <button
+                        onClick={() => setPurchaseToDelete(p)}
+                        className="p-2 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
+                        aria-label={`Delete ${p.product_name} on ${new Date(p.purchase_date).toLocaleDateString('en-IN')}`}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
@@ -322,6 +350,24 @@ export default function CustomerProfile() {
           customer={customer}
           onClose={() => setPaymentModalOpen(false)}
           onSaved={handlePaymentSaved}
+        />
+      )}
+
+      {purchaseError && (
+        <div className="fixed bottom-4 inset-x-4 sm:inset-x-auto sm:right-4 z-50 rounded-xl bg-red-600 text-white px-4 py-3 text-sm shadow-lg flex items-center gap-3" role="alert">
+          {purchaseError}
+          <button onClick={() => setPurchaseError(null)} aria-label="Close"><X size={16} /></button>
+        </div>
+      )}
+
+      {purchaseToDelete && (
+        <ConfirmDialog
+          title="Delete this entry?"
+          message={`${purchaseToDelete.quantity} ${purchaseToDelete.unit} ${purchaseToDelete.product_name} on ${new Date(purchaseToDelete.purchase_date).toLocaleDateString('en-IN')} (₹${purchaseToDelete.total_amount}). The amount comes off ${customer?.full_name || 'the customer'}'s balance and the stock goes back.`}
+          confirmLabel="Delete"
+          danger
+          onConfirm={handleDeletePurchase}
+          onCancel={() => setPurchaseToDelete(null)}
         />
       )}
 

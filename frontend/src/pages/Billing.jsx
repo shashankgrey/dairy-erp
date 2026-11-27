@@ -243,7 +243,8 @@ export default function Billing() {
     }
   }
 
-  const canSave = !saving && itemCount > 0 && (customer || (walkIn && walkInName.trim()));
+  // A walk-in buyer needs no name: it is saved as "Walk-in customer".
+  const canSave = !saving && itemCount > 0 && (customer || walkIn);
 
   const save = useCallback(async () => {
     if (!canSave) return;
@@ -252,7 +253,7 @@ export default function Billing() {
     try {
       const { data } = await api.post('/purchases/bill', {
         customer_id: customer ? customer.id : null,
-        walk_in_customer_name: customer ? null : walkInName.trim(),
+        walk_in_customer_name: customer ? null : walkInName.trim() || 'Walk-in customer',
         purchase_date: date,
         items: lines.map((l) => ({ product_id: l.product.id, quantity: l.qty })),
       });
@@ -405,7 +406,7 @@ export default function Billing() {
               <input
                 value={walkInName}
                 onChange={(e) => setWalkInName(e.target.value)}
-                placeholder="Customer name (for the record)"
+                placeholder="Name (optional)"
                 className="mt-3 w-full px-3 py-2.5 rounded-lg border border-border-light dark:border-border-dark bg-transparent"
               />
             )}
@@ -640,11 +641,11 @@ export default function Billing() {
             >
               {saving
                 ? 'Saving…'
-                : !customer && !(walkIn && walkInName.trim())
-                  ? 'Select a customer to save'
+                : !customer && !walkIn
+                  ? 'Select a customer or Walk-in'
                   : itemCount === 0
                     ? 'Add items to save'
-                    : <>Save to {customer ? customer.full_name.split(' ')[0] : walkInName.trim()}'s account<span className="hidden pointer-fine:inline"> (F5)</span></>}
+                    : <>{customer ? `Save to ${customer.full_name.split(' ')[0]}'s account` : 'Save walk-in bill'}<span className="hidden pointer-fine:inline"> (F5)</span></>}
             </button>
           </div>
 
@@ -665,7 +666,7 @@ export default function Billing() {
             disabled={!canSave}
             className="ml-auto flex-1 max-w-xs py-3 rounded-xl bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-bold"
           >
-            {saving ? 'Saving…' : canSave ? 'Save bill' : 'Select a customer'}
+            {saving ? 'Saving…' : canSave ? 'Save bill' : itemCount && !customer && !walkIn ? 'Pick customer or Walk-in' : 'Save bill'}
           </button>
         </div>
       )}

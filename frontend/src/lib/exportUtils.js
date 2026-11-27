@@ -202,7 +202,7 @@ export function generateBillPDF(bill) {
 // (receivables/payables/net). Mirrors generateBillPDF's branding
 // (dairy-green header, autoTable sections) so downloads look
 // consistent across the app.
-export function generateDailyReportPDF(report) {
+export function generateDailyReportPDF(report, { suppliers = true } = {}) {
   const doc = new jsPDF();
   const { date, sales, stockPurchases, dairy } = report;
   const q = (n) => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
@@ -228,7 +228,7 @@ export function generateDailyReportPDF(report) {
   doc.setFontSize(10);
   doc.setTextColor(30, 30, 30);
   doc.text(`Customers served: ${dairy.customersServed}   ·   Sale entries: ${sales.entries}`, 14, cursorY);
-  doc.text(`Supplier deliveries: ${stockPurchases.entries}`, 14, cursorY + 6);
+  if (suppliers) doc.text(`Supplier deliveries: ${stockPurchases.entries}`, 14, cursorY + 6);
   cursorY += 16;
 
   function ensureSpace(needed) {
@@ -261,9 +261,9 @@ export function generateDailyReportPDF(report) {
     dairy.soldByProduct.map((r) => [r.product_name, `${q(r.quantity)} ${r.unit}`, r.customers]));
   section('Who bought what', ['Customer', 'Product', 'Qty'],
     sales.items.map((s) => [s.customer_name, s.product_name, `${q(s.quantity)} ${s.unit}`]));
-  section('Received from suppliers — total per product', ['Product', 'Quantity', 'Suppliers'],
+  if (suppliers) section('Received from suppliers — total per product', ['Product', 'Quantity', 'Suppliers'],
     dairy.receivedByProduct.map((r) => [r.product_name, `${q(r.quantity)} ${r.unit}`, r.suppliers]));
-  section('Who delivered what', ['Supplier', 'Product', 'Qty'],
+  if (suppliers) section('Who delivered what', ['Supplier', 'Product', 'Qty'],
     stockPurchases.items.map((s) => [s.supplier_name, s.product_name, `${q(s.quantity)} ${s.unit}`]));
 
   doc.setFontSize(8);

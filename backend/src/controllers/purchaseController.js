@@ -192,7 +192,7 @@ async function undoBill(req, res) {
     }
     if (rows.rows.some((r) => !r.recent)) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ error: `Undo only works within ${UNDO_MINUTES} minutes. Remove it from Daily Entry instead.` });
+      return res.status(400).json({ error: `Undo only works within ${UNDO_MINUTES} minutes. Delete the entry from the customer's purchase history instead.` });
     }
     const owners = new Set(rows.rows.map((r) => r.customer_id ?? `walkin:${r.walk_in_customer_name}`));
     if (owners.size !== 1) {

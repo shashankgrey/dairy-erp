@@ -4,6 +4,7 @@ import api from '../lib/api';
 import { useApiResource } from '../hooks/useApiResource';
 import { generateDailyReportPDF } from '../lib/exportUtils';
 import ToggleTabs from '../components/ToggleTabs';
+import { FEATURES } from '../lib/features';
 
 const qty = (n) => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 const today = () => new Date().toISOString().slice(0, 10);
@@ -80,7 +81,7 @@ export default function DailyReport() {
 
   // The PDF always has both the customer and supplier sections.
   function handleDownload() {
-    if (report) generateDailyReportPDF(report);
+    if (report) generateDailyReportPDF(report, { suppliers: FEATURES.suppliers });
   }
 
   const dairy = report?.dairy;
@@ -90,7 +91,7 @@ export default function DailyReport() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold">Daily Reports</h1>
-          <p className="text-sm text-muted-light dark:text-muted-dark">What went out to customers and what came in from suppliers.</p>
+          <p className="text-sm text-muted-light dark:text-muted-dark">{FEATURES.suppliers ? 'What went out to customers and what came in from suppliers.' : 'What went out to customers.'}</p>
         </div>
         <div className="flex items-center gap-2">
           <input
@@ -126,16 +127,16 @@ export default function DailyReport() {
         </div>
       ) : (
         <>
-          <ToggleTabs
+          {FEATURES.suppliers && <ToggleTabs
             value={view}
             onChange={setView}
             options={[
               { value: 'customer', label: 'Customer Activity' },
               { value: 'supplier', label: 'Supplier Activity' },
             ]}
-          />
+          />}
 
-          {view === 'customer' ? (
+          {view === 'customer' || !FEATURES.suppliers ? (
             <section className="space-y-4">
               <div className="grid sm:grid-cols-2 gap-4">
                 <Card label="Customers served" value={dairy.customersServed} />

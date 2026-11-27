@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Package, ShoppingCart, ReceiptText, Truck, ChartNoAxesCombined, MessageSquare, Settings as SettingsIcon, Hand, Sun, Moon, Menu, X, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Package, ReceiptText, Truck, ChartNoAxesCombined, MessageSquare, Settings as SettingsIcon, Hand, Sun, Moon, Menu, X, LogOut } from 'lucide-react';
+import { FEATURES } from '../lib/features';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -9,8 +10,7 @@ const NAV_ITEMS = [
   { to: '/customers', label: 'Customers', icon: Users },
   { to: '/products', label: 'Products', icon: Package },
   { to: '/billing', label: 'Billing', icon: ReceiptText },
-  { to: '/purchases', label: 'Daily Entry', icon: ShoppingCart },
-  { to: '/suppliers', label: 'Suppliers', icon: Truck },
+  ...(FEATURES.suppliers ? [{ to: '/suppliers', label: 'Suppliers', icon: Truck }] : []),
   { to: '/reminders', label: 'SMS Reminders', icon: MessageSquare },
   { to: '/reports', label: 'Reports', icon: ChartNoAxesCombined },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
