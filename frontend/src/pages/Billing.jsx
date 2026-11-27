@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Search, Plus, Minus, X, User, UserRound, History, CheckCircle2, AlertCircle, RefreshCw, Trash2, ChevronDown, Undo2 } from 'lucide-react';
 import api from '../lib/api';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { useApiResource } from '../hooks/useApiResource';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 
@@ -86,6 +87,7 @@ export default function Billing() {
   const [lastBillLoading, setLastBillLoading] = useState(false);
   const [lastSaved, setLastSaved] = useState(null); // { ids, basket, customer, walkInName, total, at }
   const [undoing, setUndoing] = useState(false);
+  const [confirmUndo, setConfirmUndo] = useState(false);
   const [picker, setPicker] = useState(null); // product whose size picker is open
   const [customQty, setCustomQty] = useState('');
   const [steps, setSteps] = useState({}); // { [productId]: last size picked }
@@ -287,6 +289,7 @@ export default function Billing() {
   // Takes the just-saved bill back off the account and puts its items
   // back on screen, so the owner can fix the mistake and save again.
   async function undoLast() {
+    setConfirmUndo(false);
     if (!lastSaved) return;
     setUndoing(true);
     try {
@@ -342,14 +345,26 @@ export default function Billing() {
           <h1 className="text-2xl font-bold">Billing</h1>
           <p className="text-sm text-muted-light dark:text-muted-dark">Pick a customer, tap what they bought, save.</p>
         </div>
-        <input
-          type="date"
-          value={date}
-          max={todayStr()}
-          onChange={(e) => setDate(e.target.value || todayStr())}
-          className="px-3 py-2 rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-sm"
-          aria-label="Bill date"
-        />
+        <div className="flex items-center gap-2 flex-wrap">
+          {lastSaved && (
+            <button
+              onClick={() => setConfirmUndo(true)}
+              disabled={undoing}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-300 dark:border-red-500/40 text-red-700 dark:text-red-400 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-60"
+              title={`Undo ${lastSaved.name}'s bill of ${money(lastSaved.total)}`}
+            >
+              <Undo2 size={16} /> {undoing ? 'Undoing…' : 'Undo last bill'}
+            </button>
+          )}
+          <input
+            type="date"
+            value={date}
+            max={todayStr()}
+            onChange={(e) => setDate(e.target.value || todayStr())}
+            className="px-3 py-2 rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark text-sm"
+            aria-label="Bill date"
+          />
+        </div>
       </div>
 
       <div className="grid md:grid-cols-[minmax(0,1fr)_300px] lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_380px] gap-4 items-start">
@@ -624,15 +639,6 @@ export default function Billing() {
               </div>
             )}
 
-            {lastSaved && (
-              <button
-                onClick={undoLast}
-                disabled={undoing}
-                className="w-full py-3 rounded-xl border-2 border-red-300 dark:border-red-500/40 text-red-700 dark:text-red-400 font-semibold flex items-center justify-center gap-2 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-60"
-              >
-                <Undo2 size={18} /> {undoing ? 'Undoing…' : `Undo last bill (${money(lastSaved.total)} – ${lastSaved.name})`}
-              </button>
-            )}
 
             <button
               onClick={save}
@@ -669,6 +675,17 @@ export default function Billing() {
             {saving ? 'Saving…' : canSave ? 'Save bill' : itemCount && !customer && !walkIn ? 'Pick customer or Walk-in' : 'Save bill'}
           </button>
         </div>
+      )}
+
+      {confirmUndo && lastSaved && (
+        <ConfirmDialog
+          title="Undo this bill?"
+          message={`${lastSaved.name}'s bill of ${money(lastSaved.total)} will be removed${lastSaved.customer ? ' and taken off their account' : ''}. The items come back on screen so you can fix them.`}
+          confirmLabel="Undo bill"
+          danger
+          onConfirm={undoLast}
+          onCancel={() => setConfirmUndo(false)}
+        />
       )}
 
       {picker && (
