@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, Package, ShoppingCart, Truck, ChartNoAxesCombined, MessageCircle, Settings as SettingsIcon, Sun, Moon, Menu, X, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Package, ReceiptText, Truck, ChartNoAxesCombined, MessageSquare, Settings as SettingsIcon, Hand, Sun, Moon, Menu, X, LogOut } from 'lucide-react';
+import { FEATURES } from '../lib/features';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -8,9 +9,9 @@ const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/customers', label: 'Customers', icon: Users },
   { to: '/products', label: 'Products', icon: Package },
-  { to: '/purchases', label: 'Daily Entry', icon: ShoppingCart },
-  { to: '/suppliers', label: 'Suppliers', icon: Truck },
-  { to: '/reminders', label: 'Reminders', icon: MessageCircle },
+  { to: '/billing', label: 'Billing', icon: ReceiptText },
+  ...(FEATURES.suppliers ? [{ to: '/suppliers', label: 'Suppliers', icon: Truck }] : []),
+  { to: '/reminders', label: 'SMS Reminders', icon: MessageSquare },
   { to: '/reports', label: 'Reports', icon: ChartNoAxesCombined },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ];
@@ -18,7 +19,7 @@ const NAV_ITEMS = [
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
-  const { darkMode, setDarkMode } = useTheme();
+  const { darkMode, setDarkMode, touchMode, setTouchMode } = useTheme();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -31,7 +32,7 @@ export default function DashboardLayout({ children }) {
       {/* Sidebar overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/40 z-30 xl:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -39,12 +40,18 @@ export default function DashboardLayout({ children }) {
       {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-40 w-64 bg-surface-light dark:bg-surface-dark border-r border-border-light dark:border-border-dark
-          transform transition-transform lg:translate-x-0
+          transform transition-transform xl:translate-x-0
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         <div className="h-16 flex items-center justify-between px-5 border-b border-border-light dark:border-border-dark">
-          <span className="font-bold text-lg text-brand-500 dark:text-brand-400">🥛 Dairy ERP</span>
-          <button className="lg:hidden" onClick={() => setSidebarOpen(false)}>
+          <span className="flex items-center gap-2 text-brand-500 dark:text-brand-400 leading-tight">
+            <span className="text-2xl">🥛</span>
+            <span>
+              <span className="block font-bold">Sri Sai Esha</span>
+              <span className="block text-xs font-medium">Dairy Products</span>
+            </span>
+          </span>
+          <button className="xl:hidden p-2" onClick={() => setSidebarOpen(false)} aria-label="Close menu">
             <X size={20} />
           </button>
         </div>
@@ -71,13 +78,26 @@ export default function DashboardLayout({ children }) {
       </aside>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="xl:pl-64">
         <header className="h-16 flex items-center justify-between px-4 sm:px-6 border-b border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark sticky top-0 z-20">
-          <button className="lg:hidden" onClick={() => setSidebarOpen(true)}>
+          <button className="xl:hidden p-2 -ml-2" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
             <Menu size={22} />
           </button>
+          <span className="hidden sm:block xl:hidden ml-2 font-bold text-brand-500 dark:text-brand-400 truncate">Sri Sai Esha Dairy</span>
 
           <div className="flex items-center gap-3 ml-auto">
+            <button
+              onClick={() => setTouchMode(!touchMode)}
+              className={`p-2 rounded-lg ${
+                touchMode
+                  ? 'bg-brand-50 dark:bg-brand-500/10 text-brand-500 dark:text-brand-400'
+                  : 'hover:bg-brand-50 dark:hover:bg-white/5'
+              }`}
+              title={touchMode ? 'Touch mode is on (tap to switch back to compact)' : 'Switch to touch mode (larger buttons)'}
+            >
+              <Hand size={18} />
+            </button>
+
             <button
               onClick={() => setDarkMode(!darkMode)}
               className="p-2 rounded-lg hover:bg-brand-50 dark:hover:bg-white/5"

@@ -257,7 +257,7 @@ export default function Customers() {
                 ) : (
                   customers.map((c) => (
                     <tr key={c.id} className={`border-b border-border-light dark:border-border-dark last:border-0 hover:bg-bg-light dark:hover:bg-white/[0.02] transition-colors ${!c.active ? 'opacity-50' : ''}`}>
-                      <td className="px-4 py-3 font-mono text-xs text-muted-light dark:text-muted-dark">{c.customer_code}</td>
+                      <td className="px-4 py-3 font-mono text-xs whitespace-nowrap text-muted-light dark:text-muted-dark">{c.customer_code}</td>
                       <td className="px-4 py-3 font-medium">
                         <Link to={`/customers/${c.id}`} className="hover:text-brand-500 hover:underline">
                           {c.full_name}

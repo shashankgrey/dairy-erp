@@ -95,7 +95,53 @@ async function getPurchaseTrend(req, res) {
   res.json(series);
 }
 
+// Dairy-only dashboard: counts and quantities, no rupee figures.
+// Per product (never summed across units): sold today, received today,
+// and stock left.
+async function getDairyToday(req, res) {
+  const [counts, products] = await Promise.all([
+    pool.query(`
+      SELECT
+        (SELECT COUNT(*) FROM customers WHERE active) AS active_customers,
+        (SELECT COUNT(DISTINCT COALESCE(customer_id::text, walk_in_customer_name))
+           FROM purchases WHERE purchase_date = CURRENT_DATE) AS served_today,
+        (SELECT COUNT(*) FROM purchases WHERE purchase_date = CURRENT_DATE) AS entries_today,
+        (SELECT COUNT(*) FROM products WHERE status = 'active'
+           AND available_stock <= low_stock_threshold) AS low_stock
+    `),
+    pool.query(`
+      SELECT pr.id, pr.name, pr.unit, pr.available_stock, pr.low_stock_threshold,
+             COALESCE(s.qty, 0) AS sold_today,
+             COALESCE(r.qty, 0) AS received_today
+      FROM products pr
+      LEFT JOIN (SELECT product_id, SUM(quantity) AS qty FROM purchases
+                 WHERE purchase_date = CURRENT_DATE GROUP BY product_id) s ON s.product_id = pr.id
+      LEFT JOIN (SELECT product_id, SUM(quantity) AS qty FROM supplier_purchases
+                 WHERE purchase_date = CURRENT_DATE GROUP BY product_id) r ON r.product_id = pr.id
+      WHERE pr.status = 'active'
+      ORDER BY COALESCE(s.qty, 0) DESC, pr.name
+    `),
+  ]);
+  const c = counts.rows[0];
+  res.json({
+    activeCustomers: Number(c.active_customers),
+    servedToday: Number(c.served_today),
+    entriesToday: Number(c.entries_today),
+    lowStockProducts: Number(c.low_stock),
+    products: products.rows.map((p) => ({
+      id: p.id,
+      name: p.name,
+      unit: p.unit,
+      stock: Number(p.available_stock),
+      lowStock: Number(p.available_stock) <= Number(p.low_stock_threshold),
+      soldToday: Number(p.sold_today),
+      receivedToday: Number(p.received_today),
+    })),
+  });
+}
+
 module.exports = {
   getStats,
   getPurchaseTrend,
+  getDairyToday,
 };

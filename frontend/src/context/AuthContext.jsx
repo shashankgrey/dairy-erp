@@ -16,6 +16,13 @@ export function AuthProvider({ children }) {
     setUser(data.user);
   }
 
+  // After a password change: keep this device logged in with the new login.
+  function updateSession(token, nextUser) {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(nextUser));
+    setUser(nextUser);
+  }
+
   function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -23,7 +30,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, updateSession }}>
       {children}
     </AuthContext.Provider>
   );

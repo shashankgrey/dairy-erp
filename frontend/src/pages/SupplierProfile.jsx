@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, IndianRupee, AlertCircle, RefreshCw, X } from 'lucide-react';
+import { ArrowLeft, AlertCircle, RefreshCw, X } from 'lucide-react';
 import api from '../lib/api';
-import SupplierPaymentModal from '../components/SupplierPaymentModal';
 import { useApiResource } from '../hooks/useApiResource';
 
 const today = () => new Date().toISOString().slice(0, 10);
-const money = (value) => `₹${Number(value || 0).toLocaleString('en-IN')}`;
+const qty = (n) => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
 function Ledger({ title, rows, render, emptyMessage = 'No records yet.' }) {
   return (
@@ -30,32 +29,29 @@ function Ledger({ title, rows, render, emptyMessage = 'No records yet.' }) {
 export default function SupplierProfile() {
   const { id } = useParams();
   const [formError, setFormError] = useState('');
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
 
   const [purchase, setPurchase] = useState({ product_id: '', quantity: '', unit_cost: '', purchase_date: today(), invoice_number: '' });
   const [savingPurchase, setSavingPurchase] = useState(false);
 
-  // Ledger date-range filter -- both purchases and payments already
+  // Delivery date-range filter -- deliveries already
   // load in full (no pagination), so filtering client-side is correct
   // here, unlike the customer purchase history which is paginated.
   const [ledgerFrom, setLedgerFrom] = useState('');
   const [ledgerTo, setLedgerTo] = useState('');
 
   const fetchAll = useCallback(async () => {
-    const [s, pr, sp, pay] = await Promise.all([
+    const [s, pr, sp] = await Promise.all([
       api.get(`/suppliers/${id}`),
       api.get('/products'),
       api.get(`/suppliers/${id}/purchases`),
-      api.get(`/suppliers/${id}/payments`),
     ]);
-    return { supplier: s.data, products: pr.data, purchases: sp.data, payments: pay.data };
+    return { supplier: s.data, products: pr.data, purchases: sp.data };
   }, [id]);
 
   const { data, error: loadError, reload: load } = useApiResource(fetchAll);
   const supplier = data?.supplier ?? null;
   const products = data?.products ?? [];
   const purchases = data?.purchases ?? [];
-  const payments = data?.payments ?? [];
 
   // Default the purchase form's product to the first available product
   // once the list has loaded, matching the original behavior.
@@ -75,10 +71,6 @@ export default function SupplierProfile() {
   const filteredPurchases = useMemo(
     () => purchases.filter((p) => inRange(p.purchase_date)),
     [purchases, ledgerFrom, ledgerTo]
-  );
-  const filteredPayments = useMemo(
-    () => payments.filter((p) => inRange(p.payment_date)),
-    [payments, ledgerFrom, ledgerTo]
   );
   const hasLedgerFilter = ledgerFrom || ledgerTo;
 
@@ -105,11 +97,6 @@ export default function SupplierProfile() {
     } finally {
       setSavingPurchase(false);
     }
-  }
-
-  function handlePaymentSaved() {
-    setPaymentModalOpen(false);
-    load();
   }
 
   if (loadError) {
@@ -157,16 +144,10 @@ export default function SupplierProfile() {
           <p className="text-sm text-muted-light dark:text-muted-dark">
             {supplier.supplier_code} {supplier.mobile_number ? `• ${supplier.mobile_number}` : ''}
           </p>
-          <p className="mt-2 text-lg font-bold text-[color:var(--color-balance-owing)]">
-            Payable: {money(supplier.outstanding_balance)}
+          <p className="mt-2 text-sm text-muted-light dark:text-muted-dark">
+            {purchases.length} deliver{purchases.length === 1 ? 'y' : 'ies'} recorded
           </p>
         </div>
-        <button
-          onClick={() => setPaymentModalOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold"
-        >
-          <IndianRupee size={14} /> Pay Supplier
-        </button>
       </div>
 
       {formError && (
@@ -174,7 +155,7 @@ export default function SupplierProfile() {
       )}
 
       <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-5 shadow-[var(--shadow-card)] max-w-lg">
-        <h2 className="font-semibold text-sm mb-4">Record Stock Purchase</h2>
+        <h2 className="font-semibold text-sm mb-4">Record Stock Received</h2>
         <form onSubmit={savePurchase} className="space-y-3">
           <select
             value={purchase.product_id}
@@ -223,13 +204,13 @@ export default function SupplierProfile() {
             disabled={savingPurchase || products.length === 0}
             className="w-full py-2.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white font-semibold disabled:opacity-60"
           >
-            {savingPurchase ? 'Saving...' : 'Add Purchase'}
+            {savingPurchase ? 'Saving...' : 'Add Delivery'}
           </button>
         </form>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-medium text-muted-light dark:text-muted-dark">Filter ledgers:</span>
+        <span className="text-sm font-medium text-muted-light dark:text-muted-dark">Filter deliveries:</span>
         <input
           type="date"
           value={ledgerFrom}
@@ -255,38 +236,20 @@ export default function SupplierProfile() {
         )}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="max-w-2xl">
         <Ledger
-          title="Stock Purchases"
+          title="Deliveries"
           rows={filteredPurchases}
-          emptyMessage={hasLedgerFilter ? 'No purchases in this date range.' : 'No records yet.'}
+          emptyMessage={hasLedgerFilter ? 'No deliveries in this date range.' : 'No deliveries yet.'}
           render={(x) => (
             <>
-              <span>{new Date(x.purchase_date).toLocaleDateString('en-IN')} • {x.product_name} ({x.quantity} {x.unit})</span>
-              <b>{money(x.total_amount)}</b>
-            </>
-          )}
-        />
-        <Ledger
-          title="Supplier Payments"
-          rows={filteredPayments}
-          emptyMessage={hasLedgerFilter ? 'No payments in this date range.' : 'No records yet.'}
-          render={(x) => (
-            <>
-              <span>{new Date(x.payment_date).toLocaleDateString('en-IN')} • {x.payment_method.toUpperCase()}</span>
-              <b>{money(x.amount)}</b>
+              <span>{new Date(x.purchase_date).toLocaleDateString('en-IN')} • {x.product_name}</span>
+              <b>{qty(x.quantity)} {x.unit}</b>
             </>
           )}
         />
       </div>
 
-      {paymentModalOpen && (
-        <SupplierPaymentModal
-          supplier={supplier}
-          onClose={() => setPaymentModalOpen(false)}
-          onSaved={handlePaymentSaved}
-        />
-      )}
     </div>
   );
 }

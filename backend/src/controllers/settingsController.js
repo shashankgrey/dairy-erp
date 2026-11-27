@@ -5,7 +5,13 @@ const pool = require('../config/db');
 // table still gets a complete, predictable shape back.
 const DEFAULTS = {
   shop_upi_id: '',
-  shop_payee_name: '',
+  shop_payee_name: 'Sri Sai Esha Dairy Products',
+  shop_phone: '',
+  sms_auto_enabled: 'false',
+  sms_auto_day: '1',
+  summary_enabled: 'false',
+  summary_phone: '',
+  summary_hour: '21',
 };
 
 async function getSettings(req, res) {

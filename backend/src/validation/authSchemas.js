@@ -19,4 +19,16 @@ const createUserSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
-module.exports = { loginSchema, createUserSchema };
+// Changing the (shared) owner login from Settings.
+const changePasswordSchema = z.object({
+  current_password: z.string().min(1, 'Enter your current password'),
+  new_password: z.string()
+    .min(8, 'New password must be at least 8 characters')
+    .max(72, 'New password is too long'),
+  new_email: z.union([z.string().trim().toLowerCase().email('Enter a valid email address'), z.literal('')]).optional(),
+}).refine((d) => d.current_password !== d.new_password, {
+  path: ['new_password'],
+  message: 'New password must be different from the current one',
+});
+
+module.exports = { loginSchema, createUserSchema, changePasswordSchema };

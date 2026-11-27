@@ -1,12 +1,11 @@
-// Run with: node src/config/migrate.js
-const fs = require('fs');
-const path = require('path');
+// Run with: npm run migrate   (or: node src/config/migrate.js)
+// The server also does this by itself every time it starts.
 const pool = require('./db');
+const { applySchema } = require('./applySchema');
 
 async function migrate() {
-  const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
   try {
-    await pool.query(sql);
+    await applySchema();
     console.log('✓ Schema applied successfully');
   } catch (err) {
     console.error('✗ Migration failed:', err.message);

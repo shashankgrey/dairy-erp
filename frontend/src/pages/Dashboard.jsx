@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Users, AlertCircle, IndianRupee, TrendingUp, PackageX, Wallet, RefreshCw } from 'lucide-react';
+import { useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { Users, UserCheck, ReceiptText, PackageX, AlertCircle, RefreshCw } from 'lucide-react';
 import api from '../lib/api';
+import { FEATURES } from '../lib/features';
+import { useApiResource } from '../hooks/useApiResource';
+
+const qty = (n) => Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
 function StatCard({ icon: Icon, label, value, tint }) {
   return (
@@ -31,32 +34,12 @@ function StatCardSkeleton() {
 }
 
 export default function Dashboard() {
-  const [stats, setStats] = useState(null);
-  const [trend, setTrend] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  function loadDashboard() {
-    setLoading(true);
-    setError(null);
-    Promise.all([
-      api.get('/dashboard/stats'),
-      api.get('/dashboard/purchase-trend?days=14'),
-    ])
-      .then(([statsRes, trendRes]) => {
-        setStats(statsRes.data);
-        setTrend(trendRes.data);
-      })
-      .catch((err) => {
-        console.error('Dashboard load failed:', err);
-        setError('Could not load dashboard data. Check that the backend is running.');
-      })
-      .finally(() => setLoading(false));
-  }
-
-  useEffect(() => {
-    loadDashboard();
+  const fetchToday = useCallback(async () => {
+    const { data } = await api.get('/dashboard/today');
+    return data;
   }, []);
+  const { data: stats, loading, error, reload } = useApiResource(fetchToday);
+  const products = stats?.products ?? [];
 
   if (error) {
     return (
@@ -66,7 +49,7 @@ export default function Dashboard() {
           <AlertCircle size={28} className="text-[color:var(--color-balance-overdue)]" />
           <p className="text-sm text-muted-light dark:text-muted-dark">{error}</p>
           <button
-            onClick={loadDashboard}
+            onClick={reload}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 transition-colors"
           >
             <RefreshCw size={14} /> Retry
@@ -78,11 +61,19 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-xl font-bold">Dashboard</h1>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-xl font-bold">Dashboard</h1>
+        <Link
+          to="/billing"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold"
+        >
+          <ReceiptText size={16} /> Start billing
+        </Link>
+      </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {loading ? (
-          Array.from({ length: 6 }).map((_, i) => <StatCardSkeleton key={i} />)
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {loading && !stats ? (
+          Array.from({ length: 4 }).map((_, i) => <StatCardSkeleton key={i} />)
         ) : (
           <>
             <StatCard
@@ -92,27 +83,15 @@ export default function Dashboard() {
               tint="bg-brand-50 dark:bg-brand-500/10 text-brand-500 dark:text-brand-400"
             />
             <StatCard
-              icon={AlertCircle}
-              label="Customers Owing"
-              value={stats.customersOwing}
-              tint="bg-amber-50 dark:bg-amber-500/10 text-[color:var(--color-balance-owing)]"
+              icon={UserCheck}
+              label="Customers Served Today"
+              value={stats.servedToday}
+              tint="bg-green-50 dark:bg-green-500/10 text-green-600 dark:text-green-400"
             />
             <StatCard
-              icon={IndianRupee}
-              label="Total Outstanding"
-              value={`₹${Number(stats.totalOutstanding ?? 0).toLocaleString('en-IN')}`}
-              tint="bg-red-50 dark:bg-red-500/10 text-[color:var(--color-balance-overdue)]"
-            />
-            <StatCard
-              icon={Wallet}
-              label="Owed to Suppliers"
-              value={`₹${Number(stats.totalPayable ?? 0).toLocaleString('en-IN')}`}
-              tint="bg-amber-50 dark:bg-amber-500/10 text-[color:var(--color-balance-owing)]"
-            />
-            <StatCard
-              icon={TrendingUp}
-              label="This Month's Revenue"
-              value={`₹${Number(stats.thisMonthRevenue ?? 0).toLocaleString('en-IN')}`}
+              icon={ReceiptText}
+              label="Entries Today"
+              value={stats.entriesToday}
               tint="bg-brand-50 dark:bg-brand-500/10 text-brand-500 dark:text-brand-400"
             />
             <Link to="/products">
@@ -127,45 +106,40 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl p-5 shadow-[var(--shadow-card)]">
-        <h2 className="text-sm font-semibold text-muted-light dark:text-muted-dark mb-4">
-          Purchases — last 14 days
-        </h2>
-        {loading ? (
-          <div className="h-[260px] flex items-center justify-center text-sm text-muted-light dark:text-muted-dark">
-            Loading chart...
-          </div>
+      <div className="bg-surface-light dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-xl overflow-hidden shadow-[var(--shadow-card)]">
+        <div className="px-5 py-3 border-b border-border-light dark:border-border-dark">
+          <h2 className="font-semibold">Today's products</h2>
+          <p className="text-xs text-muted-light dark:text-muted-dark">{FEATURES.suppliers ? "What went out, what came in, and what's left." : "What went out today and what's left."}</p>
+        </div>
+        {loading && !stats ? (
+          <div className="p-8 text-center text-sm text-muted-light dark:text-muted-dark">Loading…</div>
+        ) : products.length === 0 ? (
+          <div className="p-8 text-center text-sm text-muted-light dark:text-muted-dark">No active products yet.</div>
         ) : (
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={trend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="currentColor" opacity={0.1} />
-              <XAxis
-                dataKey="date"
-                tickFormatter={(d) => d.slice(5)}
-                tick={{ fontSize: 12 }}
-                stroke="currentColor"
-                opacity={0.5}
-              />
-              <YAxis tick={{ fontSize: 12 }} stroke="currentColor" opacity={0.5} />
-              <Tooltip
-                formatter={(value) => [`₹${value}`, 'Revenue']}
-                contentStyle={{
-                  borderRadius: 8,
-                  border: '1px solid var(--color-border-light)',
-                  background: 'var(--color-surface-light)',
-                  color: 'var(--color-text-light)',
-                  fontSize: 13,
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="total"
-                stroke="var(--color-brand-500)"
-                strokeWidth={2}
-                dot={{ r: 3 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-border-light dark:border-border-dark">
+                <tr>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">Product</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">Sold today</th>
+                  {FEATURES.suppliers && <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">Received today</th>}
+                  <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">In stock</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((p) => (
+                  <tr key={p.id} className="border-b border-border-light dark:border-border-dark last:border-0">
+                    <td className="px-4 py-3 font-medium">{p.name}</td>
+                    <td className="px-4 py-3 text-right font-semibold">{p.soldToday ? `${qty(p.soldToday)} ${p.unit}` : '—'}</td>
+                    {FEATURES.suppliers && <td className="px-4 py-3 text-right">{p.receivedToday ? `${qty(p.receivedToday)} ${p.unit}` : '—'}</td>}
+                    <td className={`px-4 py-3 text-right ${p.lowStock ? 'text-red-600 font-semibold' : ''}`}>
+                      {qty(p.stock)} {p.unit}{p.lowStock ? ' · low' : ''}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

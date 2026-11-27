@@ -1,30 +1,23 @@
 {
-  "name": "backend",
+  "name": "dairy-erp-backend",
   "version": "1.0.0",
-  "description": "Express + SQLite backend API",
-  "main": "index.js",
-  "type": "commonjs",
+  "description": "Sri Sai Esha Dairy Products - billing backend (Express + PostgreSQL)",
+  "main": "server.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
+    "start": "node server.js",
+    "dev": "nodemon server.js",
     "migrate": "node src/config/migrate.js"
   },
-  "keywords": [
-    "express",
-    "sqlite",
-    "api",
-    "backend"
-  ],
-  "author": "Your Name",
-  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "ISC",
+  "type": "commonjs",
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^11.3.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
-    "express-rate-limit": "^8.6.2",
-    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.22.0",
     "zod": "^4.4.3"

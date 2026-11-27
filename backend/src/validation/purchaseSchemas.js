@@ -49,4 +49,33 @@ const purchaseBodySchema = z.object({
   }
 });
 
-module.exports = { purchaseBodySchema };
+// ---- Tap-to-bill: a whole basket for one customer in one save ----
+const dateString = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Please use a valid date');
+const billQuantity = z.coerce.number()
+  .refine((v) => Math.round(v * 100) >= 1, { message: 'Quantity must be at least 0.01' })
+  .refine((v) => v <= 10000, { message: 'That quantity is too large' });
+
+const billBodySchema = z.object({
+  customer_id: z.coerce.number().int().positive().optional().nullable(),
+  walk_in_customer_name: z.string().trim().optional().nullable(),
+  purchase_date: dateString,
+  items: z.array(z.object({
+    product_id: z.coerce.number().int().positive(),
+    quantity: billQuantity,
+  })).min(1, 'Add at least one item to the bill').max(60, 'Too many items in one bill'),
+}).superRefine((d, ctx) => {
+  if (!d.customer_id && !d.walk_in_customer_name) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['customer_id'], message: 'Select a customer first' });
+  }
+});
+
+const lastBillQuerySchema = z.object({
+  customer_id: z.coerce.number().int().positive(),
+  before: dateString,
+});
+
+const undoBillSchema = z.object({
+  purchase_ids: z.array(z.coerce.number().int().positive()).min(1, 'Nothing to undo').max(60),
+});
+
+module.exports = { purchaseBodySchema, billBodySchema, lastBillQuerySchema, undoBillSchema };

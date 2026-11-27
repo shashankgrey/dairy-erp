@@ -1,0 +1,16 @@
+{
+  "name": "Sri Sai Esha Dairy Products",
+  "short_name": "Sai Esha Dairy",
+  "description": "Billing, customers, stock and reports for Sri Sai Esha Dairy Products.",
+  "start_url": "/billing",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F4F7F6",
+  "theme_color": "#0F5E4C",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

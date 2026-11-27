@@ -6,13 +6,12 @@ import SupplierFormModal from '../components/SupplierFormModal';
 import { useApiResource } from '../hooks/useApiResource';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 
-const money = (value) => `₹${Number(value || 0).toLocaleString('en-IN')}`;
+const shortDate = (d) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '—');
 
 function SkeletonRow() {
   return (
     <tr className="border-b border-border-light dark:border-border-dark last:border-0 animate-pulse">
       <td className="p-3"><div className="h-4 w-32 bg-border-light dark:bg-border-dark rounded mb-1" /><div className="h-3 w-20 bg-border-light dark:bg-border-dark rounded" /></td>
-      <td className="p-3"><div className="h-4 w-16 bg-border-light dark:bg-border-dark rounded" /></td>
       <td className="p-3"><div className="h-4 w-16 bg-border-light dark:bg-border-dark rounded" /></td>
       <td className="p-3"><div className="h-4 w-16 bg-border-light dark:bg-border-dark rounded" /></td>
       <td className="p-3"><div className="h-4 w-8 bg-border-light dark:bg-border-dark rounded ml-auto" /></td>
@@ -103,9 +102,8 @@ export default function Suppliers() {
               <thead className="border-b border-border-light dark:border-border-dark">
                 <tr>
                   <th className="p-3 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">Supplier</th>
-                  <th className="p-3 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">Purchased</th>
-                  <th className="p-3 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">Paid</th>
-                  <th className="p-3 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">Payable</th>
+                  <th className="p-3 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">Deliveries</th>
+                  <th className="p-3 text-left text-xs font-semibold text-muted-light dark:text-muted-dark uppercase">Last delivery</th>
                   <th className="p-3"></th>
                 </tr>
               </thead>
@@ -113,7 +111,7 @@ export default function Suppliers() {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
                 ) : supplierList.length === 0 ? (
-                  <tr><td colSpan={5} className="p-8 text-center text-muted-light dark:text-muted-dark">
+                  <tr><td colSpan={4} className="p-8 text-center text-muted-light dark:text-muted-dark">
                     No suppliers found{search && ` for "${search}"`}.
                   </td></tr>
                 ) : (
@@ -128,9 +126,8 @@ export default function Suppliers() {
                           {!s.active && ' • Archived'}
                         </div>
                       </td>
-                      <td className="p-3">{money(s.total_purchased)}</td>
-                      <td className="p-3">{money(s.total_paid)}</td>
-                      <td className="p-3 font-semibold text-[color:var(--color-balance-owing)]">{money(s.outstanding_balance)}</td>
+                      <td className="p-3">{s.deliveries ?? 0}</td>
+                      <td className="p-3">{shortDate(s.last_delivery)}</td>
                       <td className="p-3">
                         <div className="flex items-center justify-end">
                           <button onClick={() => openEdit(s)} className="p-2 rounded-lg hover:bg-brand-50 dark:hover:bg-white/5" title="Edit">
